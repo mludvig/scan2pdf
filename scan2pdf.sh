@@ -2,34 +2,118 @@
 
 ## Put your sane-detected device name here.
 #DEVICE="snapscan"
-DEVICE='brother4:net1;dev0'
-
 ## For network scanners use
 #DEVICE="net:sane.example.org:snapscan"
+DEVICE='brother4:net1;dev0'
 
 ## See scanimage --device $(DEVICE) --help
-#SOURCE="FlatBed"
-SOURCE="Automatic Document Feeder(centrally aligned)"
-#SOURCE="Automatic Document Feeder(centrally aligned,Duplex)"
+SOURCES[0]="FlatBed"
+SOURCES[1]="Automatic Document Feeder(left aligned)"
+SOURCES[2]="Automatic Document Feeder(left aligned,Duplex)"
+SOURCES[3]="Automatic Document Feeder(centrally aligned)"
+SOURCES[4]="Automatic Document Feeder(centrally aligned,Duplex)"
+SOURCE=${SOURCES[3]} # Default
+
+RESOLUTIONS=(100 150 200 300 400 600 1200 2400 4800 9600)
+RESOLUTION=150	# Default
+
+MODES[0]="Black & White"
+MODES[1]="Gray[Error Diffusion]"
+MODES[2]="True Gray"
+MODES[3]="24bit Color"
+MODES[4]="24bit Color[Fast]"
+MODE=${MODES[2]}	# Default
+
+function process_option()
+{
+	declare -a ARRAY=("${!1}"); shift
+	VALUE=$1; shift
+	DEFAULT=$1; shift
+	MESSAGE=$1; shift
+	if in_array ARRAY[@] "${VALUE}"; then
+		echo ${VALUE}
+		exit 0
+	fi
+	if [ ${VALUE} -lt 0 -o ${VALUE} -ge ${#ARRAY[@]} ]; then
+		echo "$0: ${MESSAGE}"
+		list_array ARRAY[@] "$DEFAULT"
+		exit 1
+	fi >&2
+	echo ${ARRAY[${VALUE}]}
+}
+
+function in_array()
+{
+	declare -a ARRAY=("${!1}"); shift
+	VALUE=$1; shift
+	for i in ${!ARRAY[@]}; do
+		test "${ARRAY[$i]}" = "${VALUE}" && return 0
+	done
+	return 1
+}
+
+function list_array()
+{
+	declare -a ARRAY=("${!1}"); shift
+	DEFAULT=$1; shift
+	for i in ${!ARRAY[@]}; do
+		MARK_DEFAULT=" "
+		test "${ARRAY[$i]}" = "${DEFAULT}" && MARK_DEFAULT="*"
+		echo "  ${MARK_DEFAULT} [$i]  ${ARRAY[$i]}"
+	done
+}
+
+while getopts m:s:r:d:o:kh OPTION
+do
+	case ${OPTION} in
+		m)
+			MODE=$(process_option MODES[@] "${OPTARG}" "${MODE}" "invalid mode, valid values for -m are:")
+			test $? -gt 0 && exit 1
+			;;
+		r|d)
+			RESOLUTION=$(process_option RESOLUTIONS[@] "${OPTARG}" "${RESOLUTION}" "invalid resolution, valid values for -r are:")
+			test $? -gt 0 && exit 1
+			;;
+		s)
+			SOURCE=$(process_option SOURCES[@] "${OPTARG}" "${SOURCE}" "invalid source, valid values for -s are:")
+			test $? -gt 0 && exit 1
+			;;
+		o)
+			OUTFILE=${OPTARG}
+			;;
+		k)
+			KEEP_TMP=1
+			;;
+		h|?)
+			usage
+			exit 2
+	esac
+done
+
+test -z "${OUTFILE}" && usage
+
+echo -e "\e[1mScanning options:\e[0m"
+echo -e "\e[33mMODE:    \e[1m${MODE}\e[0m"
+echo -e "\e[33mDPI:     \e[1m${RESOLUTION}\e[0m"
+echo -e "\e[33mSOURCE:  \e[1m${SOURCE}\e[0m"
+echo -e "\e[33mOUTFILE: \e[1m${OUTFILE}\e[0m"
 
 #SCANIMAGE_OPTS=' --resolution 150 --brightness 20 --contrast 20 -l 0 -t 0 -x 210 -y 290'
-SCANIMAGE_OPTS=' --resolution 150 -l 0 -t 0 -x 210 -y 290'
+SCANIMAGE_OPTS=' -l 0 -t 0 -x 210 -y 290'
 
 if [ "$1" = "" ]; then
         echo "Usage: $0 <output-file-name.pdf>"
         exit 1
 fi
 
-OUTFILE=$1
-
-TMPDIR=$(mktemp -d)
+TMPDIR=$(mktemp -d /tmp/scan2pdf.XXXXXXX)
 
 echo "Temporary files kept in: ${TMPDIR}"
 
 cd ${TMPDIR}
 
 set +e
-scanimage --device ${DEVICE} ${SCANIMAGE_OPTS} --source="${SOURCE}" --mode="True Gray" --progress --verbose --format=tiff --batch  # --batch-prompt
+scanimage --device ${DEVICE} ${SCANIMAGE_OPTS} --resolution ${RESOLUTION} --source="${SOURCE}" --mode="${MODE}" --progress --verbose --format=tiff --batch  # --batch-prompt
 set -e
 ls -1 out*.tif > /dev/null
 
