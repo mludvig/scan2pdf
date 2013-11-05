@@ -24,6 +24,9 @@ MODES[3]="24bit Color"
 MODES[4]="24bit Color[Fast]"
 MODE=${MODES[2]}	# Default
 
+QUALITIES=(70 80 90 100)
+QUALITY=80	# Default
+
 function process_option()
 {
 	declare -a ARRAY=("${!1}"); shift
@@ -36,7 +39,7 @@ function process_option()
 	fi
 	if [ ${VALUE} -lt 0 -o ${VALUE} -ge ${#ARRAY[@]} ]; then
 		echo "$0: ${MESSAGE}"
-		list_array ARRAY[@] "$DEFAULT"
+		list_array ARRAY[@] "$DEFAULT" "  "
 		exit 1
 	fi >&2
 	echo ${ARRAY[${VALUE}]}
@@ -56,14 +59,45 @@ function list_array()
 {
 	declare -a ARRAY=("${!1}"); shift
 	DEFAULT=$1; shift
+        PREFIX=$1; shift
 	for i in ${!ARRAY[@]}; do
 		MARK_DEFAULT=" "
 		test "${ARRAY[$i]}" = "${DEFAULT}" && MARK_DEFAULT="*"
-		echo "  ${MARK_DEFAULT} [$i]  ${ARRAY[$i]}"
+		echo "${PREFIX}${MARK_DEFAULT} [$i]  ${ARRAY[$i]}"
 	done
 }
 
-while getopts m:s:r:d:o:kh OPTION
+function print_current_options()
+{
+	echo -e "\e[1mCurrent scanning options:\e[0m"
+	echo -e "\e[33mMODE:    \e[1m${MODE}\e[0m"
+	echo -e "\e[33mDPI:     \e[1m${RESOLUTION}\e[0m"
+	echo -e "\e[33mSOURCE:  \e[1m${SOURCE}\e[0m"
+	echo -e "\e[33mQUALITY: \e[1m${QUALITY}\e[0m"
+	echo -e "\e[33mOUTFILE: \e[1m${OUTFILE}\e[0m"
+}
+
+function usage()
+{
+        echo -e "Usage: \e[1;32m$(basename $0)\e[0m \e[1m[-m MODE] [-d DPI] [-s SOURCE] [-k] [-h]\e[33m -o OUTFILE\e[0m"
+        echo
+        echo -e "    \e[1m-m MODE\e[0m     Colour mode"
+	list_array MODES[@] "${MODE}" "              "
+        echo
+        echo -e "    \e[1m-d DPI\e[0m      Resolution"
+	list_array RESOLUTIONS[@] "${RESOLUTION}" "              "
+        echo
+        echo -e "    \e[1m-s SOURCE\e[0m   Source"
+	list_array SOURCES[@] "${SOURCE}" "              "
+        echo
+        echo -e "    \e[1m-q QUALITY\e[0m  Quality"
+	list_array QUALITIES[@] "${QUALITY}" "              "
+        echo
+	print_current_options
+	exit 1
+}
+
+while getopts m:s:r:d:q:o:kh OPTION
 do
 	case ${OPTION} in
 		m)
@@ -76,6 +110,10 @@ do
 			;;
 		s)
 			SOURCE=$(process_option SOURCES[@] "${OPTARG}" "${SOURCE}" "invalid source, valid values for -s are:")
+			test $? -gt 0 && exit 1
+			;;
+		q)
+			QUALITY=$(process_option QUALITIES[@] "${OPTARG}" "${QUALITY}" "invalid JPG quality, valid values for -q are:")
 			test $? -gt 0 && exit 1
 			;;
 		o)
@@ -92,19 +130,10 @@ done
 
 test -z "${OUTFILE}" && usage
 
-echo -e "\e[1mScanning options:\e[0m"
-echo -e "\e[33mMODE:    \e[1m${MODE}\e[0m"
-echo -e "\e[33mDPI:     \e[1m${RESOLUTION}\e[0m"
-echo -e "\e[33mSOURCE:  \e[1m${SOURCE}\e[0m"
-echo -e "\e[33mOUTFILE: \e[1m${OUTFILE}\e[0m"
+print_current_options
 
 #SCANIMAGE_OPTS=' --resolution 150 --brightness 20 --contrast 20 -l 0 -t 0 -x 210 -y 290'
 SCANIMAGE_OPTS=' -l 0 -t 0 -x 210 -y 290'
-
-if [ "$1" = "" ]; then
-        echo "Usage: $0 <output-file-name.pdf>"
-        exit 1
-fi
 
 TMPDIR=$(mktemp -d /tmp/scan2pdf.XXXXXXX)
 
