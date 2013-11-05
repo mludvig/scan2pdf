@@ -142,15 +142,18 @@ echo "Temporary files kept in: ${TMPDIR}"
 cd ${TMPDIR}
 
 set +e
-scanimage --device ${DEVICE} ${SCANIMAGE_OPTS} --resolution ${RESOLUTION} --source="${SOURCE}" --mode="${MODE}" --progress --verbose --format=tiff --batch  # --batch-prompt
+scanimage --device ${DEVICE} ${SCANIMAGE_OPTS} --resolution ${RESOLUTION} --source="${SOURCE}" --mode="${MODE}" --progress --verbose --format=tiff --batch=out%03d.tif  # --batch-prompt
 set -e
 ls -1 out*.tif > /dev/null
 
-tiffcp -c lzw out*.tif scan.tiff
-
 cd -
 
-tiff2pdf -z ${TMPDIR}/scan.tiff > ${OUTFILE}
+# Use TIFF tools
+#tiffcp -c lzw ${TMPDIR}/out*.tif ${TMPDIR}/scan.tiff
+#tiff2pdf -z ${TMPDIR}/scan.tiff > ${OUTFILE}
+
+# Use ImageMagick
+convert ${TMPDIR}/out*.tif -compress jpeg -quality ${QUALITY} ${OUTFILE}
 
 ls -l ${OUTFILE}
 
