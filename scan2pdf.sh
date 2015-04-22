@@ -79,7 +79,7 @@ function print_current_options()
 
 function usage()
 {
-        echo -e "Usage: \e[1;32m$(basename $0)\e[0m \e[1m[-m MODE] [-d DPI] [-s SOURCE] [-k] [-h]\e[33m -o OUTFILE\e[0m"
+        echo -e "Usage: \e[1;32m$(basename $0)\e[0m \e[1m[-m MODE] [-d DPI] [-s SOURCE] [-q QUALITY] [-k] [-f] [-h]\e[33m -o OUTFILE\e[0m"
         echo
         echo -e "    \e[1m-m MODE\e[0m     Colour mode"
 	list_array MODES[@] "${MODE}" "              "
@@ -92,12 +92,18 @@ function usage()
         echo
         echo -e "    \e[1m-q QUALITY\e[0m  Quality"
 	list_array QUALITIES[@] "${QUALITY}" "              "
-        echo
+	echo
+	echo -e "    \e[1m-o OUTFILE\e[0m  Output file name"
+	echo
+	echo -e "    \e[1m-f\e[0m          Force output file overwriting"
+	echo
+	echo -e "    \e[1m-k\e[0m          Keep temporary files"
+	echo
 	print_current_options
 	exit 1
 }
 
-while getopts m:s:r:d:q:o:kh OPTION
+while getopts m:s:r:d:q:o:kfh OPTION
 do
 	case ${OPTION} in
 		m)
@@ -122,6 +128,9 @@ do
 		k)
 			KEEP_TMP=1
 			;;
+		f)
+			FORCE_OVERWRITE=1
+			;;
 		h|?)
 			usage
 			exit 2
@@ -129,6 +138,11 @@ do
 done
 
 test -z "${OUTFILE}" && usage
+
+if [ -f "${OUTFILE}" -a -z "${FORCE_OVERWRITE}" ]; then
+	echo "Output file exists, use -f to force overwrite: ${OUTFILE}" >&2
+	exit 1
+fi
 
 print_current_options
 
@@ -158,7 +172,7 @@ convert ${TMPDIR}/out*.tif -compress jpeg -quality ${QUALITY} ${OUTFILE}
 ls -l ${OUTFILE}
 
 if [ -z "${KEEP_TMP}" ]; then
-        rm -rf ${TEMPDIR}
+        rm -rf ${TMPDIR}
 else
         echo "Temporary files are in ${TEMPDIR}"
 fi
