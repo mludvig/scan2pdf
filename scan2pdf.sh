@@ -25,7 +25,7 @@ MODES[4]="24bit Color[Fast]"
 MODE=${MODES[2]}	# Default
 
 QUALITIES=(70 80 90 100)
-QUALITY=80	# Default
+QUALITY=70	# Default
 
 function process_option()
 {
